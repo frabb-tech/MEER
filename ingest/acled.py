@@ -12,7 +12,7 @@ TARGET_COUNTRIES = [
     "SRB", "MKD", "ROU", "MDA"
 ]
 
-def fetch_acled_data(days_back=7):
+def fetch_acled_data(days_back=365):
     start_date = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%d")
     end_date = datetime.utcnow().strftime("%Y-%m-%d")
     all_data = []
