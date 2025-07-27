@@ -8,7 +8,7 @@ def prepare_data(df, metric="fatalities"):
     df = df.groupby("ds").sum().reset_index()
     return df
 
-def forecast(df, days=7):
+def forecast(df, days=30):
     model = Prophet()
     model.fit(df)
     future = model.make_future_dataframe(periods=days)
