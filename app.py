@@ -1,53 +1,29 @@
 
 import streamlit as st
+import pandas as pd
 from ingest.acled import fetch_acled_data
 from ai.forecast import prepare_data, forecast
-import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="HEWRI – Conflict Dashboard", layout="wide")
-st.title("🛰️ HEWRI: Conflict Early Warning System (ACLED Data)")
+st.set_page_config(page_title="HEWRI Phase 2", layout="wide")
+st.title("📊 HEWRI Phase 2 – Forecasting Dashboard")
 
-st.sidebar.header("Filters")
-days = st.sidebar.slider("Days Back", 1, 30, 7)
-country_filter = st.sidebar.selectbox("Select Country", options=[
-    "Syria", "Iraq", "Lebanon", "Jordan", "Israel", "Palestine", "Turkey",
-    "Afghanistan", "Armenia", "Georgia", "Azerbaijan", "Iran", "Yemen", "Saudi Arabia",
-    "Egypt", "Sudan", "Libya", "Albania", "Bulgaria", "Bosnia", "Serbia", "North Macedonia", "Romania", "Moldova"
-])
+st.sidebar.header("Filter Data")
+days = st.sidebar.slider("Days of History", 30, 365, 180)
+df = fetch_acled_data(days_back=days)
 
-with st.spinner("Fetching conflict data..."):
-    df = fetch_acled_data(days)
-    if not df.empty:
-        df["fatalities"] = pd.to_numeric(df["fatalities"], errors="coerce").fillna(0).astype(int)
-        df["event_date"] = pd.to_datetime(df["event_date"])
-        df["events"] = 1
+if not df.empty:
+    df["event_date"] = pd.to_datetime(df["event_date"])
+    df["fatalities"] = pd.to_numeric(df["fatalities"], errors="coerce").fillna(0).astype(int)
+    df["events"] = 1
+    st.success(f"Loaded {len(df)} conflict events")
 
-        df_country = df[df["country"] == country_filter]
-        admin1_list = sorted(df_country["admin1"].dropna().unique())
-        admin1_filter = st.sidebar.selectbox("Select Admin1", ["All"] + admin1_list)
-
-        if admin1_filter != "All":
-            df_country = df_country[df_country["admin1"] == admin1_filter]
-
-        st.success(f"Loaded {len(df_country)} events.")
-        st.metric("Total Events", len(df_country))
-        st.metric("Total Fatalities", df_country['fatalities'].sum())
-        st.dataframe(df_country[["event_date", "country", "admin1", "event_type", "fatalities"]])
-
-        csv = df_country.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "acled_events.csv", "text/csv")
-
-        if st.checkbox("📈 Show Forecast"):
-            metric = st.radio("Forecast metric", ["fatalities", "events"], horizontal=True)
-            if len(df_country) >= 5:
-                data = prepare_data(df_country, metric=metric)
-                result = forecast(data, days=7)
-                fig = px.line(result, x="ds", y="yhat", title=f"{metric.capitalize()} Forecast for {country_filter} - {admin1_filter}")
-                fig.add_scatter(x=result["ds"], y=result["yhat_lower"], mode='lines', name='Lower Bound', line=dict(dash='dot'))
-                fig.add_scatter(x=result["ds"], y=result["yhat_upper"], mode='lines', name='Upper Bound', line=dict(dash='dot'))
-                st.plotly_chart(fig)
-            else:
-                st.warning("Not enough data for forecasting. Try selecting a different region.")
-    else:
-        st.warning("No data found.")
+    # Basic time series preview
+    if st.checkbox("📈 Show Overall Forecast"):
+        ts = df[["event_date", "fatalities"]].rename(columns={"event_date": "ds", "fatalities": "y"})
+        ts = ts.groupby("ds").sum().reset_index()
+        model_out = forecast(ts, days=30)
+        fig = px.line(model_out, x="ds", y="yhat", title="Total Fatalities Forecast")
+        st.plotly_chart(fig)
+else:
+    st.warning("No data loaded.")
