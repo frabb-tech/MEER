@@ -21,11 +21,16 @@ def fetch_acled_data(days_back=7):
             "iso3": iso3,
             "event_date": f">{start_date}",
             "limit": 5000,
-            "admin_level": 1
+            "admin_level": 1,
+            "email": "fady_abboud@wvi.org"
         }
-        r = requests.get(ACLED_API_URL, params=params)
-        if r.status_code == 200:
-            all_data.extend(r.json().get("data", []))
-        else:
-            print(f"Failed for {iso3}")
+        try:
+            r = requests.get(ACLED_API_URL, params=params)
+            json_data = r.json()
+            if json_data.get("success") == "0":
+                print(f"API error: {json_data.get('message')}")
+                continue
+            all_data.extend(json_data.get("data", []))
+        except Exception as e:
+            print(f"Error fetching ACLED data for {iso3}: {e}")
     return pd.DataFrame(all_data)
