@@ -14,9 +14,11 @@ TARGET_COUNTRIES = [
 
 def fetch_acled_data(days_back=7):
     start_date = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    end_date = datetime.utcnow().strftime("%Y-%m-%d")
     all_data = []
+
     for iso3 in TARGET_COUNTRIES:
-        url = f"{BASE_URL}{API_PARAMS}&iso3={iso3}&event_date=>{start_date}&limit=5000&admin_level=1"
+        url = f"{BASE_URL}{API_PARAMS}&iso3={iso3}&event_date_from={start_date}&event_date_to={end_date}&limit=5000&admin_level=1"
         try:
             r = requests.get(url)
             json_data = r.json()
